@@ -235,6 +235,46 @@ def get_last_checkpoint_filename(output_dir, model_name):
         print("No last checkpoint available - starting from epoch 0 ")
         return ""
 
+'''
+# Use for waveglow transfer learning
+def load_checkpoint(model, optimizer, scaler, epoch, filepath, local_rank):
+
+    checkpoint = torch.load(filepath, map_location='cpu')
+
+    epoch[0] = checkpoint['epoch']+1
+    device_id = 0 #local_rank % torch.cuda.device_count()
+    amp_run = True
+   #  if 'cuda_rng_state_all' in checkpoint: torch.cuda.set_rng_state_all(checkpoint['cuda_rng_state_all'])
+    # if 'random_rng_state' in checkpoint: torch.random.set_rng_state(checkpoint['random_rng_state'])
+    # if 'config' in checkpoint: config = checkpoint['config']
+    # model.load_state_dict(checkpoint['state_dict'])
+    # if 'optimizer' in checkpoint: optimizer.load_state_dict(checkpoint['optimizer'])
+
+    # if amp_run and 'amp' in checkpoint:
+    #    amp.load_state_dict(checkpoint['amp'])
+    # torch.cuda.set_rng_state(checkpoint['cuda_rng_state_all'][device_id])
+    # if 'random_rng_states_all' in checkpoint:
+    #     torch.random.set_rng_state(checkpoint['random_rng_states_all'][device_id])
+    # elif 'random_rng_state' in checkpoint:
+    #     torch.random.set_rng_state(checkpoint['random_rng_state'])
+    # else:
+    #     raise Exception("Model checkpoint must have either 'random_rng_state' or 'random_rng_states_all' key.")
+    # model.load_state_dict(checkpoint['state_dict'])
+    # optimizer.load_state_dict(checkpoint['optimizer'])
+    # scaler.load_state_dict(checkpoint['scaler'])
+    
+    if 'cuda_rng_state_all' in checkpoint: torch.cuda.set_rng_state(checkpoint['cuda_rng_state_all'][device_id])
+    if 'random_rng_state_all' in checkpoint: torch.random.set_rng_state(checkpoint['random_rng_state_all'][device_id])
+    if 'config' in checkpoint: config = checkpoint['config']
+    model.load_state_dict({k.replace('module.',''): v for k, v in checkpoint['state_dict'].items()})
+    if 'optimizer' in checkpoint: optimizer.load_state_dict(checkpoint['optimizer'])
+
+    if amp_run and 'scaler' in checkpoint:
+        scaler.load_state_dict(checkpoint['scaler'])
+    
+    return checkpoint['config']
+'''
+# Use for Tacotron distributed training
 
 def load_checkpoint(model, optimizer, scaler, epoch, filepath, local_rank):
 
@@ -355,7 +395,8 @@ def main():
         local_rank = args.rank
         world_size = args.world_size
 
-    distributed_run = world_size > 1
+    distributed_run = world_size > 1 # False
+    # world_size = 1
 
     if args.seed is not None:
         torch.manual_seed(args.seed + local_rank)
@@ -542,9 +583,9 @@ def main():
                                                batch_to_gpu,
                                                args.amp)
 
-        if (epoch % args.epochs_per_checkpoint == 0) and (args.bench_class == "" or args.bench_class == "train"):
-            save_checkpoint(model, optimizer, scaler, epoch, model_config,
-                            args.output, args.model_name, local_rank, world_size)
+        #if (epoch % args.epochs_per_checkpoint == 0) and (args.bench_class == "" or args.bench_class == "train"):
+        save_checkpoint(model, optimizer, scaler, epoch, model_config,
+                        args.output, args.model_name, local_rank, world_size)
         if local_rank == 0:
             DLLogger.flush()
 

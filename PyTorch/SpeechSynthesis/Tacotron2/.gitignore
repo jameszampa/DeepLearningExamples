@@ -1,4 +1,9 @@
 __pycache__/
 /checkpoints/
 /output/
-nvlog.json
+nvlog*
+/data/
+/mels/
+/data_/
+checkpoint*
+waveglow*

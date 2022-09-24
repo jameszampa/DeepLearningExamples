@@ -205,9 +205,9 @@ def main():
     DLLogger.log(step="PARAMETER", data={'model_name':'Tacotron2_PyT'})
 
     tacotron2 = load_and_setup_model('Tacotron2', parser, args.tacotron2,
-                                     args.fp16, args.cpu, forward_is_infer=True)
+                                     False, args.cpu, forward_is_infer=True)
     waveglow = load_and_setup_model('WaveGlow', parser, args.waveglow,
-                                    args.fp16, args.cpu, forward_is_infer=True)
+                                    True, args.cpu, forward_is_infer=True)
     denoiser = Denoiser(waveglow)
     if not args.cpu:
         denoiser.cuda()
@@ -231,6 +231,7 @@ def main():
         for i in range(3):
             with torch.no_grad():
                 mel, mel_lengths, _ = jitted_tacotron2(sequence, input_lengths)
+                mel = mel.type(torch.cuda.HalfTensor)
                 _ = waveglow(mel)
 
     measurements = {}
@@ -239,6 +240,7 @@ def main():
 
     with torch.no_grad(), MeasureTime(measurements, "tacotron2_time", args.cpu):
         mel, mel_lengths, alignments = jitted_tacotron2(sequences_padded, input_lengths)
+        mel = mel.type(torch.cuda.HalfTensor) 
 
     with torch.no_grad(), MeasureTime(measurements, "waveglow_time", args.cpu):
         audios = waveglow(mel, sigma=args.sigma_infer)
